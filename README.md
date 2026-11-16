@@ -1,5 +1,7 @@
 # Anime Game Masterdata & Asset Downloader
 
+**Language / ภาษา:** [🇹🇭 ภาษาไทย](README.md) | [🇺🇸 English](README.en.md)
+
 เครื่องมือ CLI ภาษา Python สำหรับดึง **Masterdata JSON** และดาวน์โหลด/แตกไฟล์ **Assets ความละเอียดสูงสุด** จากเกมไอดอล, ดนตรี, และอนิเมะ RPG 8 เกมยอดนิยม แยกเก็บเป็นสัดส่วนตามเกมและหมวดหมู่ พร้อมระบบอัปโหลดและซิงค์ขึ้น **Google Drive** อัตโนมัติ
 
 > [!NOTE]

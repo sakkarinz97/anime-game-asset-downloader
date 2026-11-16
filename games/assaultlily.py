@@ -393,47 +393,27 @@ class AssaultLilyAdapter(GameAdapter):
             jobs.append((pkey, info, dest_dir, ab_url, jpg_url))
 
         if jobs:
-            cdn_workers = max(1, min(options.threads, 2))
+            cdn_workers = max(1, min(options.threads, 4))
             print(
                 f"[assaultlily:card_animation] Downloading & extracting {len(jobs)} animated Memoria bundles "
                 f"from allb.tqlwsl.moe (threads={cdn_workers})..."
             )
 
-            def _fetch_job(ab_url: str, jpg_url: str | None) -> tuple[bytes, bytes | None]:
-                time.sleep(0.35)
-                ab_raw = fetch_bytes(ab_url, timeout=90, retries=4, reject_html=True)
-                jpg_raw = None
-                if jpg_url:
-                    try:
-                        time.sleep(0.15)
-                        jpg_raw = fetch_bytes(jpg_url, timeout=45, retries=3, reject_html=True)
-                    except Exception:
-                        jpg_raw = None
-                return ab_raw, jpg_raw
-
-            fetched: dict[str, tuple[bytes, bytes | None]] = {}
-            errors: dict[str, str] = {}
-            with ThreadPoolExecutor(max_workers=cdn_workers) as pool:
-                futs = {pool.submit(_fetch_job, ab_u, jpg_u): pkey for pkey, _, _, ab_u, jpg_u in jobs}
-                for fut in as_completed(futs):
-                    pkey = futs[fut]
-                    try:
-                        fetched[pkey] = fut.result()
-                    except Exception as exc:
-                        errors[pkey] = str(exc)
-
-            for pkey, info, dest_dir, ab_url, jpg_url in jobs:
-                res.total += 1
-                item = fetched.get(pkey)
-                if not item:
-                    res.failed += 1
-                    if len(res.errors) < 10:
-                        res.errors.append(f"card_{pkey}: {errors.get(pkey, 'Download failed')}")
-                    continue
-                ab_raw, jpg_raw = item
-                bundle_name = f"card_{pkey}.bundle"
+            def _process_one(job: tuple) -> tuple[str, bool, str | None]:
+                pkey, info, dest_dir, ab_url, jpg_url = job
                 try:
-                    meta = extract_animated_card_bundle(
+                    time.sleep(0.15)
+                    ab_raw = fetch_bytes(ab_url, timeout=90, retries=4, reject_html=True)
+                    jpg_raw = None
+                    if jpg_url:
+                        try:
+                            time.sleep(0.05)
+                            jpg_raw = fetch_bytes(jpg_url, timeout=45, retries=3, reject_html=True)
+                        except Exception:
+                            jpg_raw = None
+
+                    bundle_name = f"card_{pkey}.bundle"
+                    extract_animated_card_bundle(
                         ab_raw,
                         dest_dir,
                         fallback_version="2022.3.21f1",
@@ -454,12 +434,28 @@ class AssaultLilyAdapter(GameAdapter):
                     )
                     if jpg_raw:
                         (dest_dir / "card_preview.jpg").write_bytes(jpg_raw)
-                    _ = meta
-                    res.downloaded += 1
+                    return pkey, True, None
                 except Exception as exc:
-                    res.failed += 1
-                    if len(res.errors) < 10:
-                        res.errors.append(f"card_{pkey}: {exc}")
+                    return pkey, False, str(exc)
+
+            completed_count = 0
+            with ThreadPoolExecutor(max_workers=cdn_workers) as pool:
+                futs = {pool.submit(_process_one, job): job[0] for job in jobs}
+                for fut in as_completed(futs):
+                    completed_count += 1
+                    res.total += 1
+                    pkey, ok, err_msg = fut.result()
+                    if ok:
+                        res.downloaded += 1
+                    else:
+                        res.failed += 1
+                        if len(res.errors) < 10:
+                            res.errors.append(f"card_{pkey}: {err_msg}")
+                    if completed_count % 25 == 0 or completed_count == len(jobs):
+                        print(
+                            f"[assaultlily:card_animation] Progress {completed_count}/{len(jobs)} "
+                            f"(ok={res.downloaded}, skip={res.skipped}, fail={res.failed})"
+                        )
 
         res.note = (
             "Animated Memoria Prefabs (allb.tqlwsl.moe): 2048x2048 Atlases + VFX Sprites + Emoria Spine 3.6 (.skel/.atlas/.png) + AnimationMeta JSON"

@@ -6,7 +6,13 @@ import argparse
 import sys
 from pathlib import Path
 
-from core.base import CATEGORIES, CategoryResult, DownloadOptions
+from core.base import (
+    ANIMATED_CARD_GAMES,
+    CATEGORIES,
+    SPECIAL_CATEGORIES,
+    CategoryResult,
+    DownloadOptions,
+)
 from core.drive_sync import DriveSyncClient, DriveSyncError
 from games import ADAPTERS
 
@@ -41,13 +47,14 @@ def parse_games(raw_games: list[str]) -> list[str]:
 
 def print_games_table() -> None:
     print("Supported Games:")
-    print("-" * 96)
-    print(f"{'Code':<14} {'Regions':<18} {'Name':<44} {'Sources / Credits'}")
-    print("-" * 96)
+    print("-" * 108)
+    print(f"{'Code':<14} {'Regions':<16} {'AnimCard':<9} {'Name':<40} {'Sources / Credits'}")
+    print("-" * 108)
     for code, adapter in ADAPTERS.items():
         regs = ",".join(adapter.supported_regions)
-        print(f"{code:<14} {regs:<18} {adapter.name[:43]:<44} {adapter.credits}")
-    print("-" * 96)
+        anim = "yes" if adapter.supports_card_animation else "-"
+        print(f"{code:<14} {regs:<16} {anim:<9} {adapter.name[:39]:<40} {adapter.credits}")
+    print("-" * 108)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -68,9 +75,27 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--category",
-        choices=("card", "live2d", "character", "all"),
+        choices=("card", "live2d", "character", "card_animation", "all"),
         default="all",
-        help="Asset category: card (full-res cards), live2d (Live2D/Spine), character (sprites/icons/trims), or all",
+        help=(
+            "Asset category: card (full-res cards), live2d (Live2D/Spine), "
+            "character (sprites/icons/trims), card_animation (yumesute & assaultlily animated cards), or all"
+        ),
+    )
+    p.add_argument(
+        "--card-animation",
+        action="store_true",
+        help="Also download animated card versions (special option for yumesute & assaultlily)",
+    )
+    p.add_argument(
+        "--animated-only",
+        action="store_true",
+        help="Filter card/card_animation to animated-capable cards only (for yumesute & assaultlily)",
+    )
+    p.add_argument(
+        "--no-raw-bundle",
+        action="store_true",
+        help="Skip keeping raw UnityFS .bundle files during card_animation extraction (keep extracted PNG/Spine/JSON only)",
     )
     p.add_argument(
         "--region",
@@ -157,7 +182,13 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         parser.error(str(exc))
 
-    categories = list(CATEGORIES) if args.category == "all" else [args.category]
+    if args.category == "card_animation":
+        categories = list(SPECIAL_CATEGORIES)
+    elif args.category == "all":
+        categories = list(CATEGORIES)
+    else:
+        categories = [args.category]
+
     options = DownloadOptions(
         out_dir=args.out_dir.resolve(),
         categories=categories,
@@ -167,6 +198,9 @@ def main(argv: list[str] | None = None) -> int:
         limit=args.limit,
         threads=args.threads,
         refresh_masterdata=args.refresh_masterdata,
+        card_animation=args.card_animation or (args.category == "card_animation"),
+        animated_only=args.animated_only,
+        save_raw_bundle=not args.no_raw_bundle,
     )
 
     drive_client: DriveSyncClient | None = None
@@ -186,18 +220,36 @@ def main(argv: list[str] | None = None) -> int:
     for gcode in games:
         adapter = ADAPTERS[gcode]
         print(f"\n=== [{gcode}] {adapter.name} (region={options.region}) ===")
-        for cat in categories:
-            try:
-                res = adapter.run_category(cat, options)
-            except Exception as exc:
+        cats_for_game = list(categories)
+        if args.card_animation and "card_animation" not in cats_for_game:
+            if adapter.supports_card_animation:
+                cats_for_game.append("card_animation")
+            else:
+                print(
+                    f"[{gcode}] Note: --card-animation is available only for "
+                    f"{', '.join(ANIMATED_CARD_GAMES)} (skipping animated card step)."
+                )
+
+        for cat in cats_for_game:
+            if cat == "card_animation" and not adapter.supports_card_animation:
                 res = CategoryResult(
                     game=gcode,
-                    category=cat,
-                    supported=True,
-                    failed=1,
-                    note=f"Error: {exc}",
-                    errors=[str(exc)],
+                    category="card_animation",
+                    supported=False,
+                    note=f"Special option --card-animation is supported only for {', '.join(ANIMATED_CARD_GAMES)}",
                 )
+            else:
+                try:
+                    res = adapter.run_category(cat, options)
+                except Exception as exc:
+                    res = CategoryResult(
+                        game=gcode,
+                        category=cat,
+                        supported=True,
+                        failed=1,
+                        note=f"Error: {exc}",
+                        errors=[str(exc)],
+                    )
             sync_info = None
             if drive_client and res.supported and res.output_path and res.output_path.exists():
                 drive_cat = res.output_path.name
@@ -221,16 +273,16 @@ def main(argv: list[str] | None = None) -> int:
                     res.errors.append(str(exc))
             results.append((res, sync_info))
 
-    print("\n" + "=" * 96)
+    print("\n" + "=" * 108)
     print("SUMMARY")
-    print("=" * 96)
+    print("=" * 108)
     any_failed = False
     for res, sync_info in results:
         if res.failed > 0:
             any_failed = True
         status = "UNSUPPORTED" if not res.supported else ("ERR" if res.failed else "OK")
         line = (
-            f"- {res.game:<12} | {res.category:<10} | {status:<11} | "
+            f"- {res.game:<12} | {res.category:<14} | {status:<11} | "
             f"dl={res.downloaded:<4} skip={res.skipped:<4} fail={res.failed:<3} total={res.total:<4}"
         )
         if res.note:

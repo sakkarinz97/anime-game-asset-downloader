@@ -28,7 +28,7 @@ def fetch_bytes(
     url: str,
     headers: Optional[dict[str, str]] = None,
     timeout: int = 60,
-    retries: int = 3,
+    retries: int = 4,
     reject_html: bool = False,
 ) -> bytes:
     req_headers = {"User-Agent": DEFAULT_UA}
@@ -37,6 +37,7 @@ def fetch_bytes(
 
     last_err: Exception | None = None
     for attempt in range(retries):
+        throttled = False
         try:
             req = urllib.request.Request(url, headers=req_headers)
             with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -48,13 +49,15 @@ def fetch_bytes(
         except urllib.error.HTTPError as e:
             if e.code in (404, 410):
                 raise HttpError404(f"HTTP {e.code}: {url}") from e
+            throttled = e.code in (429, 502, 503, 504)
             last_err = e
         except HttpError404:
             raise
         except Exception as e:
             last_err = e
         if attempt < retries - 1:
-            time.sleep(0.5 * (attempt + 1))
+            wait_sec = min(12.0, 1.5 * (2**attempt)) if throttled else (0.75 * (attempt + 1))
+            time.sleep(wait_sec)
 
     assert last_err is not None
     raise last_err
@@ -64,7 +67,7 @@ def fetch_json(
     url: str,
     headers: Optional[dict[str, str]] = None,
     timeout: int = 60,
-    retries: int = 3,
+    retries: int = 4,
 ) -> Any:
     raw = fetch_bytes(
         url, headers=headers, timeout=timeout, retries=retries, reject_html=True
@@ -94,13 +97,21 @@ def load_or_fetch_json(
     return data
 
 
-def download_one(task: DownloadTask, timeout: int = 60, retries: int = 3) -> tuple[str, str]:
+def download_one(
+    task: DownloadTask,
+    timeout: int = 60,
+    retries: int = 4,
+    request_delay: float = 0.0,
+) -> tuple[str, str]:
     """
     Returns status tuple:
       ("skipped", "") | ("downloaded", "") | ("missing", msg) | ("failed", msg)
     """
     if task.dest.exists() and task.dest.stat().st_size > 0:
         return "skipped", ""
+
+    if request_delay > 0:
+        time.sleep(request_delay)
 
     task.dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = task.dest.with_name(task.dest.name + ".part")
@@ -136,6 +147,7 @@ def run_download_tasks(
     output_path: Path,
     threads: int = 8,
     note: str = "",
+    request_delay: float = 0.0,
 ) -> CategoryResult:
     task_list = list(tasks)
     result = CategoryResult(
@@ -155,7 +167,10 @@ def run_download_tasks(
     step = max(1, min(25, len(task_list) // 5 or 1))
 
     with ThreadPoolExecutor(max_workers=max(1, threads)) as pool:
-        futures = {pool.submit(download_one, t): t for t in task_list}
+        futures = {
+            pool.submit(download_one, t, 60, 4, request_delay): t
+            for t in task_list
+        }
         for fut in as_completed(futures):
             status, msg = fut.result()
             with lock:

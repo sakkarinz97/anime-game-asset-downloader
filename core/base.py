@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Optional
 
 CATEGORIES = ("card", "live2d", "character")
+SPECIAL_CATEGORIES = ("card_animation",)
+ANIMATED_CARD_GAMES = ("yumesute", "assaultlily")
 
 
 @dataclass
@@ -30,6 +32,9 @@ class DownloadOptions:
     limit: Optional[int] = None
     threads: int = 8
     refresh_masterdata: bool = False
+    card_animation: bool = False
+    animated_only: bool = False
+    save_raw_bundle: bool = True
 
 
 @dataclass
@@ -62,6 +67,7 @@ class GameAdapter(ABC):
     name: str = ""
     credits: str = ""
     supported_regions: tuple[str, ...] = ("jp",)
+    supports_card_animation: bool = False
     category_notes: dict[str, str] = {}
 
     def game_dir(self, options: DownloadOptions) -> Path:

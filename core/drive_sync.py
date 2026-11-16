@@ -189,22 +189,20 @@ class DriveSyncClient:
         uploaded = 0
         skipped = 0
         if chosen_mode == "zip":
-            with tempfile.TemporaryDirectory(prefix="agd_zip_") as tmpdir:
-                archive_base = Path(tmpdir) / f"{game_code}_{category}"
-                zip_file = Path(shutil.make_archive(str(archive_base), "zip", root_dir=local_dir))
-                children = self.list_folder(target_folder_id)
-                existing = children.get(zip_file.name)
-                should_update = overwrite
-                if existing and not overwrite:
-                    existing_size = int(existing.get("size") or 0)
-                    new_size = zip_file.stat().st_size
-                    if existing_size != new_size:
-                        should_update = True
-                st, fid = self.upload_file(zip_file, target_folder_id, overwrite=should_update)
-                if st in ("uploaded", "updated"):
-                    uploaded += 1
-                else:
-                    skipped += 1
+            zip_name = f"{game_code}_{category}.zip"
+            children = self.list_folder(target_folder_id)
+            existing = children.get(zip_name)
+            if existing and not overwrite:
+                skipped += 1
+            else:
+                with tempfile.TemporaryDirectory(prefix="agd_zip_") as tmpdir:
+                    archive_base = Path(tmpdir) / f"{game_code}_{category}"
+                    zip_file = Path(shutil.make_archive(str(archive_base), "zip", root_dir=local_dir))
+                    st, fid = self.upload_file(zip_file, target_folder_id, overwrite=overwrite)
+                    if st in ("uploaded", "updated"):
+                        uploaded += 1
+                    else:
+                        skipped += 1
         else:
             for file_path in files:
                 rel_parts = list(file_path.relative_to(local_dir).parts[:-1])

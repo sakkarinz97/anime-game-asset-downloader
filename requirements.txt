@@ -1,0 +1,8 @@
+# Core downloaders (cgss, mltd, pjsk, bandori, ournotes, assaultlily, yumesute-github)
+# run purely on Python >= 3.10 standard library.
+
+# Optional packages for live CDN Unity AssetBundle decoding (yumesute live CDN & holodori):
+Pillow>=10.0.0
+UnityPy>=1.25.4
+brotli>=1.1.0
+holodori-asset-tools>=1.1.1

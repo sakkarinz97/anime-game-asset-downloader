@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Downloaded heavy assets, extracted bundles & cached masterdata (stored in Google Drive instead)
+downloads/
+assets/
+cinderella_girls_starlight_stage/
+million_live_theater_days/
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.moc
+*.moc3
+*.skel
+*.atlas
+*.mtn
+*.bundle
+*.acb
+*.awb
+*.usm
+*.zip
+*.rar
+*.7z
+octo_catalog*.json
+2dcatalog*.json
+*.part
+*.tmp

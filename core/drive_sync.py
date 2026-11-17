@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Optional
 
 FOLDER_MIME = "application/vnd.google-apps.folder"
-MAX_SINGLE_ZIP_BYTES = 2_500_000_000
-ZIP_PART_BYTES = 1_800_000_000
+MAX_SINGLE_ZIP_BYTES = 1_500_000_000
+ZIP_PART_BYTES = 1_200_000_000
 _PRECOMPRESSED_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4", ".webm", ".zip"}
 
 
@@ -205,7 +205,7 @@ class DriveSyncClient:
         Google Drive under <root_name>/<game_code>/<category>/.
         mode:
           - 'direct': mirror subfolder structure & upload files individually
-          - 'zip': pack local_dir into <game_code>_<category>.zip (or chunked parts if > 2.5 GB)
+          - 'zip': pack local_dir into <game_code>_<category>.zip (or chunked parts if > 1.5 GB)
           - 'auto': 'direct' if <= 40 files, else 'zip'
         """
         if not local_dir.exists():
@@ -245,7 +245,7 @@ class DriveSyncClient:
                     print(f"[Drive] {zip_name} already exists on Drive (skipped {idx}/{len(part_specs)})")
                     skipped += 1
                     continue
-                with tempfile.TemporaryDirectory(prefix="agd_zip_") as tmpdir:
+                with tempfile.TemporaryDirectory(prefix=".agd_zip_", dir=local_dir.parent) as tmpdir:
                     zip_file = self._write_zip(Path(tmpdir) / zip_name, local_dir, chunk_files)
                     size_mb = zip_file.stat().st_size / (1024 * 1024)
                     print(

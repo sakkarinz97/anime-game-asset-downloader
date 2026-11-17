@@ -224,9 +224,10 @@ class AssaultLilyAdapter(GameAdapter):
                 game=self.code,
                 category="card",
                 output_path=base_out,
-                threads=max(1, min(options.threads, 3)),
+                threads=max(1, min(options.threads, 6)),
                 note=note,
-                request_delay=0.1,
+                request_delay=0.02,
+                cache_404_path=None if options.refresh_masterdata else (base_out.parent / ".card_404_urls.json"),
             )
 
         # category == "character"

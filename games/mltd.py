@@ -136,4 +136,5 @@ class MLTDAdapter(GameAdapter):
             category=category,
             output_path=base_out,
             threads=options.threads,
+            cache_404_path=None if options.refresh_masterdata else (base_out.parent / f".{category}_404_urls.json"),
         )

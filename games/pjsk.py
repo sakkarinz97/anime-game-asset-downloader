@@ -119,6 +119,7 @@ class PJSKAdapter(GameAdapter):
                     DownloadTask(
                         url=f"{cdn}/character/member/{ab}/card_normal.png",
                         dest=base_out / f"{cid}_{ab}" / "card_normal.png",
+                        optional=True,
                     )
                 )
                 if has_trained:
@@ -185,6 +186,7 @@ class PJSKAdapter(GameAdapter):
             category=category,
             output_path=base_out,
             threads=options.threads,
+            cache_404_path=None if options.refresh_masterdata else (base_out.parent / f".{category}_404_urls.json"),
         )
 
     def _download_live2d(self, options: DownloadOptions, asset_region: str, base_out) -> CategoryResult:

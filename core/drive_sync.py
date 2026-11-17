@@ -79,7 +79,7 @@ class DriveSyncClient:
     def list_folder(self, folder_id: str, force: bool = False) -> dict[str, dict]:
         if not force and folder_id in self._children_cache:
             return self._children_cache[folder_id]
-        raw = self._run(["readonly", "ls", folder_id, "--json"])
+        raw = self._run(["readonly", "ls", folder_id, "--max", "0", "--json"])
         items = json.loads(raw) if raw else []
         by_name = {item["name"]: item for item in items if not item.get("trashed")}
         self._children_cache[folder_id] = by_name

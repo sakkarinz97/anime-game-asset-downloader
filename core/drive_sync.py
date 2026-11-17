@@ -7,10 +7,14 @@ import os
 import shutil
 import subprocess
 import tempfile
+import zipfile
 from pathlib import Path
 from typing import Optional
 
 FOLDER_MIME = "application/vnd.google-apps.folder"
+MAX_SINGLE_ZIP_BYTES = 2_500_000_000
+ZIP_PART_BYTES = 1_800_000_000
+_PRECOMPRESSED_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4", ".webm", ".zip"}
 
 
 class DriveSyncError(RuntimeError):
@@ -156,6 +160,37 @@ class DriveSyncClient:
         children[local_path.name] = uploaded
         return "uploaded", uploaded["id"]
 
+    @staticmethod
+    def _chunk_files(files: list[Path], max_chunk_bytes: int) -> list[list[Path]]:
+        chunks: list[list[Path]] = []
+        current: list[Path] = []
+        current_bytes = 0
+        for p in files:
+            sz = p.stat().st_size
+            if current and current_bytes + sz > max_chunk_bytes:
+                chunks.append(current)
+                current = [p]
+                current_bytes = sz
+            else:
+                current.append(p)
+                current_bytes += sz
+        if current:
+            chunks.append(current)
+        return chunks
+
+    @staticmethod
+    def _write_zip(zip_path: Path, root_dir: Path, members: list[Path]) -> Path:
+        with zipfile.ZipFile(zip_path, "w", allowZip64=True) as zf:
+            for member in members:
+                rel = member.relative_to(root_dir).as_posix()
+                ctype = (
+                    zipfile.ZIP_STORED
+                    if member.suffix.lower() in _PRECOMPRESSED_EXTS
+                    else zipfile.ZIP_DEFLATED
+                )
+                zf.write(member, arcname=rel, compress_type=ctype)
+        return zip_path
+
     def sync_category_dir(
         self,
         local_dir: Path,
@@ -170,7 +205,7 @@ class DriveSyncClient:
         Google Drive under <root_name>/<game_code>/<category>/.
         mode:
           - 'direct': mirror subfolder structure & upload files individually
-          - 'zip': pack local_dir into <game_code>_<category>.zip and upload
+          - 'zip': pack local_dir into <game_code>_<category>.zip (or chunked parts if > 2.5 GB)
           - 'auto': 'direct' if <= 40 files, else 'zip'
         """
         if not local_dir.exists():
@@ -189,16 +224,35 @@ class DriveSyncClient:
         uploaded = 0
         skipped = 0
         if chosen_mode == "zip":
-            zip_name = f"{game_code}_{category}.zip"
-            children = self.list_folder(target_folder_id)
-            existing = children.get(zip_name)
-            if existing and not overwrite:
-                skipped += 1
+            total_raw_bytes = sum(p.stat().st_size for p in files)
+            if total_raw_bytes <= MAX_SINGLE_ZIP_BYTES:
+                part_specs = [(f"{game_code}_{category}.zip", files)]
             else:
+                raw_chunks = self._chunk_files(files, ZIP_PART_BYTES)
+                if len(raw_chunks) == 1:
+                    part_specs = [(f"{game_code}_{category}.zip", raw_chunks[0])]
+                else:
+                    nparts = len(raw_chunks)
+                    part_specs = [
+                        (f"{game_code}_{category}_part{idx:02d}_of_{nparts:02d}.zip", chunk)
+                        for idx, chunk in enumerate(raw_chunks, 1)
+                    ]
+
+            children = self.list_folder(target_folder_id)
+            for idx, (zip_name, chunk_files) in enumerate(part_specs, 1):
+                existing = children.get(zip_name)
+                if existing and not overwrite:
+                    print(f"[Drive] {zip_name} already exists on Drive (skipped {idx}/{len(part_specs)})")
+                    skipped += 1
+                    continue
                 with tempfile.TemporaryDirectory(prefix="agd_zip_") as tmpdir:
-                    archive_base = Path(tmpdir) / f"{game_code}_{category}"
-                    zip_file = Path(shutil.make_archive(str(archive_base), "zip", root_dir=local_dir))
-                    st, fid = self.upload_file(zip_file, target_folder_id, overwrite=overwrite)
+                    zip_file = self._write_zip(Path(tmpdir) / zip_name, local_dir, chunk_files)
+                    size_mb = zip_file.stat().st_size / (1024 * 1024)
+                    print(
+                        f"[Drive] Uploading {zip_name} ({idx}/{len(part_specs)}, "
+                        f"{len(chunk_files)} files, {size_mb:.1f} MB)..."
+                    )
+                    st, _ = self.upload_file(zip_file, target_folder_id, overwrite=overwrite)
                     if st in ("uploaded", "updated"):
                         uploaded += 1
                     else:

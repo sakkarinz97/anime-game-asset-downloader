@@ -2,10 +2,10 @@
 
 **Language / ภาษา:** [🇺🇸 English](README.md) | [🇹🇭 ภาษาไทย](README.th.md)
 
-A unified Python CLI tool for fetching **Masterdata JSON** and downloading/extracting **full-resolution assets** across 8 popular anime, idol, and gacha games—organized cleanly by game and category, with built-in automated sync to **Google Drive**.
+A unified Python CLI tool for fetching **Masterdata JSON** and downloading/extracting **full-resolution assets** across 9 popular anime, idol, and gacha games—organized cleanly by game and category, with built-in automated sync to **Google Drive**.
 
 > [!NOTE]
-> This project follows a **Hybrid Architecture (Approach 2)**: only Python downloader scripts live on **GitHub** (`sakkarinz97/anime-game-asset-downloader`), while large images, Live2D/Spine models, and Unity AssetBundles are excluded via `.gitignore` and stored in **Google Drive** (`Work/AnimeGameAssets/`).
+> This project follows a **Hybrid Architecture (Approach 2)**: only Python downloader scripts live on **GitHub** (`sakkarinz97/anime-game-asset-downloader`), while large images, Live2D/Spine models, story scripts, and Unity AssetBundles are excluded via `.gitignore` and stored in **Google Drive** (`Work/AnimeGameAssets/`).
 
 ---
 
@@ -24,14 +24,16 @@ A unified Python CLI tool for fetching **Masterdata JSON** and downloading/extra
 <a id="overview"></a>
 ## 1. Project Overview & Architecture
 
-**Anime Game Masterdata & Asset Downloader** consolidates **8 game adapters** behind a single CLI entrypoint (`main.py` / `anime-dl`). It supports both direct HTTP JSON/image endpoints and encrypted/packed UnityFS AssetBundles requiring AES decryption, Addressables catalog parsing, and `UnityPy` texture/shader/animation extraction.
+**Anime Game Masterdata & Asset Downloader** consolidates **9 game adapters** behind a single CLI entrypoint (`main.py` / `anime-dl`). It supports both direct HTTP JSON/image endpoints and encrypted/packed UnityFS AssetBundles requiring AES decryption, Addressables catalog parsing, and `UnityPy` texture/shader/animation extraction.
 
 ### Supported Asset Categories
 1. **`card`** — Highest-resolution Card / Memoria illustrations (base & awakened/trained variants, HQ clean backgrounds, cutouts, and covers where available).
 2. **`live2d`** — 2D character model rigs (Live2D Cubism 2/3/4/5 with `.moc`/`.moc3`, `model.json`/`model3.json`, textures, physics, expressions, and motions; games built on **Spine** save `.skel` / `.atlas` / `.png` files under `spine/` automatically).
 3. **`character`** — Standing character illustrations (Cutouts / Chibi `puchi` / `livesd`), character icons, signatures, and high-resolution posters.
 4. **`card_animation`** *(Special mode exclusively for **`yumesute`** and **`assaultlily`**)* — Fetches and unpacks animated card UnityFS AssetBundles into multi-layer textures, FX sprite sheets, alpha masks, Emoria Spine 3.6 rigs, and `animation_meta.json` (optionally keeping or skipping raw `.bundle` files).
-5. **`all`** — Runs all 3 standard categories (`card`, `live2d`, `character`) sequentially in a single command (and can be combined with `--card-animation` to include animated cards for supported games).
+5. **`story`** *(Special mode for **`priconne`**)* — Main Story, Guild Story, Event Story, Luna's Tower, and Anniversary CG stills (`.webp`), structured story command JSONs, and locally generated readable dialogue transcripts (`.txt`).
+6. **`bond_story`** *(Special mode for **`priconne`**)* — Character Bond Story CG stills (`.webp`), bond episode script JSONs, and readable transcripts (`.txt`), grouped cleanly by character ID and name.
+7. **`all`** — Runs all 3 standard categories (`card`, `live2d`, `character`) sequentially in a single command (and can be combined with `--card-animation`, `--story`, or `--bond-story` for supported games).
 
 ### Repository & Output Directory Structure
 
@@ -46,7 +48,7 @@ anime-game-asset-downloader/
 │   ├── unity_utils.py       # Safe UnityPy Texture2D, TextAsset, Spine 3.6 & Animated Card extractor
 │   └── drive_sync.py        # Google Drive synchronization client backed by `gdrive` CLI
 ├── games/
-│   ├── __init__.py          # Registry of all 8 game adapters (`ADAPTERS`)
+│   ├── __init__.py          # Registry of all 9 game adapters (`ADAPTERS`)
 │   ├── cgss.py              # THE iDOLM@STER Cinderella Girls: Starlight Stage
 │   ├── mltd.py              # THE iDOLM@STER Million Live! Theater Days
 │   ├── pjsk.py              # Project SEKAI COLORFUL STAGE! feat. Hatsune Miku
@@ -54,12 +56,15 @@ anime-game-asset-downloader/
 │   ├── bandori.py           # BanG Dream! Girls Band Party!
 │   ├── ournotes.py          # BanG Dream! Our Notes
 │   ├── yumesute.py          # World Dai Star: Yume no Stellarium
-│   └── assaultlily.py       # Assault Lily: Last Bullet
+│   ├── assaultlily.py       # Assault Lily: Last Bullet
+│   └── priconne.py          # Princess Connect! Re:Dive (JP)
 └── downloads/               # (gitignored) Local masterdata cache & downloaded assets
     └── <game_code>/
-        ├── masterdata/      # Cached JSON / Addressables / Octo catalogs
+        ├── masterdata/      # Cached JSON / Addressables / Octo / Estertion catalogs
         ├── card/
         ├── card_animation/  # (yumesute, assaultlily)
+        ├── story/           # (priconne)
+        ├── bond_story/      # (priconne)
         ├── live2d/          # (saved as `spine/` for yumesute & assaultlily)
         └── character/
 ```
@@ -76,7 +81,8 @@ Work/
     ├── bandori/       (card, live2d, character)
     ├── ournotes/      (card, live2d, character)
     ├── yumesute/      (card, card_animation, spine, character)
-    └── assaultlily/   (card, card_animation, spine, character)
+    ├── assaultlily/   (card, card_animation, spine, character)
+    └── priconne/      (card, story, bond_story, character)
 ```
 
 ---
@@ -84,7 +90,7 @@ Work/
 <a id="games"></a>
 ## 2. Supported Games & Extracted Assets
 
-| Code (`--game`) | Game Title | Supported `--region` | `card` | `card_animation` *(Special)* | `live2d` / `spine` | `character` |
+| Code (`--game`) | Game Title | Supported `--region` | `card` | `card_animation` / `story` *(Special)* | `live2d` / `spine` | `character` |
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- |
 | **`cgss`** | THE iDOLM@STER Cinderella Girls: Starlight Stage | `jp` | Card PNGs (`card`) + widescreen illustrations (`spread`) | — | ❌ *(Game uses 3D models & 2D Puchi sprites; no Live2D)* | Card icons (`icon_card`) + `puchi` chibi sprites |
 | **`mltd`** | THE iDOLM@STER Million Live! Theater Days | `jp` | Framed/unframed card PNGs + HQ backgrounds (`card_bg_hq`, normal & awake) | — | ❌ *(Game uses 3D models; no Live2D)* | Large portrait icons (`icon_l`, normal & awake) |
@@ -94,6 +100,7 @@ Work/
 | **`ournotes`** | BanG Dream! Our Notes | `hk-tw-mo` *(alias: `tw`)*, `en`, `jp` | Member Cards (`member_full`, `member_background`) + Support Cards (`snap_full`) | — | ✅ **Cubism 3/4** (manifest-driven + auto-merged chunked `.prefab.json`) | `character_sprite`, `character_thumbnail`, `character_face_icon` + `member_character` cutouts |
 | **`yumesute`** | World Dai Star: Yume no Stellarium (`Yumesute`) | `jp` | Full-res `1920x1180` (`0.png`/`1.png`, `cover0`/`cover1`) + Cutouts | 🎬 **Animated Actor Cards** (`4★ SSR _1` & `15xxxx` series): 1920x1180 layers + FX sprite sheets + masks + Shader/Holo JSON + `.bundle` | 🦴 **Spine 4.1** (`.skel`, `.atlas`, `.png` — saved to `spine/`) | Card/Poster icons + *(with `UnityPy` + `brotli`)* Full Posters `1357x1920` & Signatures from live CDN |
 | **`assaultlily`** | Assault Lily: Last Bullet | `jp` | Full JPG `800x600` (`full/`) + 256x256 PNG + `memoria_ultimate` (★6+ / infinite-evolvable) | 🎬 **Animated Memoria Prefabs** (`card_prefab`): 2048x2048 Atlases + VFX sprites + Emoria **Spine 3.6** (`.skel`/`.atlas`/`.png`) + `card_preview.jpg` + `animation_meta.json` + `.bundle` | 🦴 **Spine Samples** (`.skel`, `.atlas`, `.png` `CharacterJobSpine*` — saved to `spine/`) | Character portraits (`chara`) + Costume Standing `@2x` (`900x1550`) + Full Illus (`1536x1174` JPG) + `job_icon` |
+| **`priconne`** | Princess Connect! Re:Dive | `jp` | Full `1408x792` (`3★`/`6★`) + Base `1★` (`1024x682`) `.webp` cards | 📖 **`story` & `bond_story`**: Main/Guild/Event/Tower/Anniversary + Character Bond Story CG stills (`.webp`), raw JSON scripts & readable `.txt` transcripts | ❌ *(Game uses Spine; download `card`, `story`, `bond_story`, `character`)* | Profiles (`profile/`, `actual_profile/`), `icon_unit/` & `plate/` (`.webp`) |
 
 > [!TIP]
 > * **`yumesute`** and **`assaultlily`** run on **Esoteric Software Spine** rather than Live2D Cubism. Running `--category live2d` automatically places their Spine assets inside each game's `spine/` folder to match the actual engine format.
@@ -107,7 +114,7 @@ Work/
 * **Python `>= 3.10`**
 
 ### Option 1: Minimal Mode (Python Standard Library Only)
-Works out of the box with **zero external packages** for `cgss`, `mltd`, `pjsk`, `bandori`, `ournotes`, `assaultlily` static/Spine samples, and `yumesute` GitHub-hosted assets:
+Works out of the box with **zero external packages** for `cgss`, `mltd`, `pjsk`, `bandori`, `ournotes`, `priconne`, `assaultlily` static/Spine samples, and `yumesute` GitHub-hosted assets:
 
 ```bash
 git clone https://github.com/sakkarinz97/anime-game-asset-downloader.git
@@ -146,10 +153,12 @@ Invoke via `python3 main.py [OPTIONS]` or `anime-dl [OPTIONS]` (when installed v
 | Flag | Default | Values / Format | Description |
 | :--- | :--- | :--- | :--- |
 | `-h`, `--help` | `False` | Flag | Show CLI help message and exit |
-| `--list-games` | `False` | Flag | Print all 8 supported games, regions, `AnimCard` capability, and credits, then exit |
-| `--game` | `all` | `cgss`, `mltd`, `pjsk`, `holodori`, `bandori`, `ournotes`, `yumesute`, `assaultlily`, `all` | Target game(s), space- or comma-separated (e.g., `--game pjsk,bandori` or `--game pjsk bandori`) |
-| `--category` | `all` | `card`, `live2d`, `character`, `card_animation`, `all` | Target category (`all` executes `card` + `live2d` + `character`) |
+| `--list-games` | `False` | Flag | Show all 9 supported games, regions, `AnimCard`/`Story` capability, and credits, then exit |
+| `--game` | `all` | `cgss`, `mltd`, `pjsk`, `holodori`, `bandori`, `ournotes`, `yumesute`, `assaultlily`, `priconne`, `all` | Target game(s), space- or comma-separated (e.g., `--game pjsk,bandori` or `--game pjsk bandori`) |
+| `--category` | `all` | `card`, `live2d`, `character`, `card_animation`, `story`, `bond_story`, `all` | Target category (`all` executes `card` + `live2d` + `character`) |
 | `--card-animation` | `False` | Flag | *(Special option for `yumesute` & `assaultlily`)* Also download the `card_animation` category alongside `--category` |
+| `--story` | `False` | Flag | *(Special option for `priconne`)* Also download Story CG stills & scripts alongside `--category` |
+| `--bond-story` | `False` | Flag | *(Special option for `priconne`)* Also download Character Bond Story CG stills & scripts alongside `--category` |
 | `--animated-only` | `False` | Flag | *(Special option for `yumesute` & `assaultlily`)* Filter `card`/`card_animation` to animated-capable cards only |
 | `--no-raw-bundle` | `False` | Flag | Do not retain raw UnityFS `.bundle` archives during `card_animation` extraction (saves extracted PNG/Spine/JPG/JSON only) |
 | `--region` | `jp` | See table below | Server region for multi-region games |
@@ -178,6 +187,7 @@ Invoke via `python3 main.py [OPTIONS]` or `anime-dl [OPTIONS]` (when installed v
 | **`ournotes`** | `hk-tw-mo` *(alias: `tw`)*, `en`, `jp` | `r`/`2`, `sr`/`3`, `ssr`/`4`, `ex` *(10)*, `bd` *(20)* |
 | **`yumesute`** | `jp` | Cards: `1`/`n`, `2`/`r`, `3`/`sr`, `4`/`ssr` *(animated `15xxxx` cards share `rarity=4`)*; Posters: `r`/`2`, `sr`/`3`, `ssr`/`4`, `ur` |
 | **`assaultlily`** | `jp` | `r`/`3`, `sr`/`4`, `ssr`/`5`, `ur`/`6`, `lg`/`7`, `8`, `9`, `10` |
+| **`priconne`** | `jp` | `1`/`1star`/`r`, `3`/`3star`/`sr`/`ssr`, `6`/`6star`/`ur` |
 
 ### Deep Dive: `--card-animation` Special Mode (`yumesute` & `assaultlily`)
 * **`yumesute` (Animated Actor Cards)**
@@ -217,6 +227,9 @@ python3 main.py --game cgss --category card --rarity ssr --character uzuki --lim
 # Download BanG Dream! Our Notes cards from the HK/TW/MO region
 python3 main.py --game ournotes --region hk-tw-mo --category card --limit 5
 
+# Download Princess Connect! Re:Dive JP cards, stories, and bond stories
+python3 main.py --game priconne --category card --story --bond-story --limit 5
+
 # Download hololive Dreams Cubism 5 Live2D models for Tokino Sora using .venv
 .venv/bin/python main.py --game holodori --category live2d --character sora --limit 2
 ```
@@ -238,8 +251,11 @@ python3 main.py --game ournotes --region hk-tw-mo --category card --limit 5
 
 ### 4) Download & Auto-Sync to Google Drive
 ```bash
-# Sample all 8 games (limit 2 per category) and upload to Google Drive (Work/AnimeGameAssets/)
+# Sample all 9 games (limit 2 per category) and upload to Google Drive (Work/AnimeGameAssets/)
 .venv/bin/python main.py --game all --category all --limit 2 --upload-drive
+
+# Sync Princess Connect! Re:Dive Card, Story & Bond Story to Google Drive
+python3 main.py --game priconne --category card --story --bond-story --upload-drive --cleanup-local
 
 # Sync Yumesute & Assault Lily animated cards to Google Drive
 .venv/bin/python main.py --game yumesute assaultlily --category card_animation --limit 2 --upload-drive
@@ -268,6 +284,7 @@ The table below lists every **GitHub repository**, **public API**, and **CDN end
 | **`ournotes`** | • [`StarMoe-org/moenotes-masterdata`](https://github.com/StarMoe-org/moenotes-masterdata) (`hk-tw-mo`, `en`, `jp`)<br>Parent project reference: [`StarMoe-org/moenotes`](https://github.com/StarMoe-org/moenotes) | Assets CDN: `assets.bdon.moe/{lang_prefix}/`<br>Live2D Manifest: `assets.bdon.moe/chart-site/models.json` | Fetches `MasterMemberCard.json`, `MasterSupportCard.json`, and `MasterCharacter.json` from `StarMoe-org/moenotes-masterdata`, and downloads images/Live2D models (merging chunked `.prefab.json`) from `assets.bdon.moe` |
 | **`yumesute`** | • [`SonolusHaniwa/sirius-decrypted-data`](https://github.com/SonolusHaniwa/sirius-decrypted-data)<br>• [`wds-sirius/Adv-Resource`](https://github.com/wds-sirius/Adv-Resource)<br>• [`wds-sirius/asset-of-dreams`](https://github.com/wds-sirius/asset-of-dreams) | Official Unity Addressables CDN: `assets-e.wds-stellarium.com/production/2d-assets/Android/{ver}/` | • `sirius-decrypted-data`: `card.json`, `master/*.json` & 1920x1180 card PNGs (`0.png`, `1.png`, `cover*.png`)<br>• `Adv-Resource`: Spine 4.1 (`manifest/Spine.json`, `spine/*.{skel,atlas,png}`), cutouts, icons, `_temp/2dcatalog.json` fallback<br>• `asset-of-dreams`: `config.yml` for live `asset_version` to fetch `catalog_{ver}.json.br`, Animated Actor Cards, Full Posters & Signatures from the live CDN |
 | **`assaultlily`** | • [`LaTlcia/A.RA.YA`](https://github.com/LaTlcia/A.RA.YA) *(MasterdataBase & Asset Catalog)*<br>• [`czk200518-hash/AssaultLily-deskpet`](https://github.com/czk200518-hash/AssaultLily-deskpet) *(Spine Samples)*<br>Tooling reference: [`LaTlcia/ArayaToolbox`](https://github.com/LaTlcia/ArayaToolbox) | Cards/Bundles CDN: `allb.tqlwsl.moe/` (`Image/Card/`, `asset_bundle/card_prefab/`)<br>Asset Mirror: `allb.game-db.tw/images/` | • `LaTlcia/A.RA.YA`: Card/character/job masterdata plus `asset_bundle/card_prefab/*` & `Image/Card/*` catalogs<br>• `czk200518-hash/AssaultLily-deskpet`: Sample `CharacterJobSpine*` Spine rigs<br>• `allb.tqlwsl.moe` & `allb.game-db.tw`: Full 800x600 Memoria JPGs, 256x256 PNGs, `@2x` costume art & Animated Memoria `.bundle` prefabs (incl. Emoria Spine 3.6) |
+| **`priconne`** | Version & DB diff repo: [`esterTion/redive_master_db_diff`](https://github.com/esterTion/redive_master_db_diff) | Extracted CDN: `redive.estertion.win/` (`card/{full,profile,actual_profile,story}/`, `story/data/`, `icon/{unit,plate}/`) | Parses live Estertion asset listings & character/story name maps to download 1★/3★/6★ Card WebPs, Story & Bond Story CG stills, and story script JSONs with generated `.txt` transcripts |
 
 ---
 
@@ -288,6 +305,7 @@ All game artwork, illustrations, character designs, 2D/3D models, scenario texts
 | **`ournotes`** | バンドリ！ アワーノーツ *(BanG Dream! Our Notes)* | **BanG Dream! Project** / **FROMTOKYO Inc.** / **Bushiroad Inc.** *(Global publishing by BILIBILI HK LIMITED)* | `© BanG Dream! Project © FROMTOKYO © bushiroad All Rights Reserved.` |
 | **`yumesute`** | ワールドダイスター 夢のステラリウム *(World Dai Star: Yume no Stellarium)* | **Sirius / Project WDS** / **KMS, inc.** | `© Sirius / Project WDS Developed and Published by KMS, inc.` |
 | **`assaultlily`** | アサルトリリィ Last Bullet *(Assault Lily: Last Bullet)* | **AZONE INTERNATIONAL・acus / Assault Lily Project** / **WFS / Pokelabo, Inc.** *(JP development & operations transferred to KING PAWN Inc. in Dec 2025)* / **SHAFT Inc.** | `© AZONE INTERNATIONAL・acus / アサルトリリィプロジェクト © WFS © Pokelabo, Inc. © SHAFT` |
+| **`priconne`** | プリンセスコネクト！Re:Dive *(Princess Connect! Re:Dive)* | **Cygames, Inc.** | `© Cygames, Inc.` |
 
 ### Legal Disclaimer & Third-Party Licenses
 1. **Unofficial Community Tool**: This project is an independent open-source utility and is **not affiliated with, endorsed by, or sponsored by** any of the publishers or IP holders listed above.

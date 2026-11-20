@@ -11,6 +11,7 @@ from .holodori import HolodoriAdapter
 from .mltd import MLTDAdapter
 from .ournotes import OurNotesAdapter
 from .pjsk import PJSKAdapter
+from .priconne import PriconneAdapter
 from .yumesute import YumesuteAdapter
 
 ADAPTERS: dict[str, GameAdapter] = {
@@ -24,5 +25,6 @@ ADAPTERS: dict[str, GameAdapter] = {
         OurNotesAdapter,
         YumesuteAdapter,
         AssaultLilyAdapter,
+        PriconneAdapter,
     )
 }

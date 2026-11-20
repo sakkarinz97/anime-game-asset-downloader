@@ -10,6 +10,7 @@ from core.base import (
     ANIMATED_CARD_GAMES,
     CATEGORIES,
     SPECIAL_CATEGORIES,
+    STORY_GAMES,
     CategoryResult,
     DownloadOptions,
 )
@@ -47,14 +48,15 @@ def parse_games(raw_games: list[str]) -> list[str]:
 
 def print_games_table() -> None:
     print("Supported Games:")
-    print("-" * 108)
-    print(f"{'Code':<14} {'Regions':<16} {'AnimCard':<9} {'Name':<40} {'Sources / Credits'}")
-    print("-" * 108)
+    print("-" * 116)
+    print(f"{'Code':<14} {'Regions':<16} {'AnimCard':<9} {'Story':<7} {'Name':<40} {'Sources / Credits'}")
+    print("-" * 116)
     for code, adapter in ADAPTERS.items():
         regs = ",".join(adapter.supported_regions)
         anim = "yes" if adapter.supports_card_animation else "-"
-        print(f"{code:<14} {regs:<16} {anim:<9} {adapter.name[:39]:<40} {adapter.credits}")
-    print("-" * 108)
+        story = "yes" if adapter.supports_story else "-"
+        print(f"{code:<14} {regs:<16} {anim:<9} {story:<7} {adapter.name[:39]:<40} {adapter.credits}")
+    print("-" * 116)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -75,17 +77,27 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--category",
-        choices=("card", "live2d", "character", "card_animation", "all"),
+        choices=("card", "live2d", "character", "card_animation", "story", "bond_story", "all"),
         default="all",
         help=(
-            "Asset category: card (full-res cards), live2d (Live2D/Spine), "
-            "character (sprites/icons/trims), card_animation (yumesute & assaultlily animated cards), or all"
+            "Asset category: card (full-res cards), live2d (Live2D/Spine), character (sprites/icons/trims), "
+            "card_animation (yumesute & assaultlily), story / bond_story (priconne), or all"
         ),
     )
     p.add_argument(
         "--card-animation",
         action="store_true",
         help="Also download animated card versions (special option for yumesute & assaultlily)",
+    )
+    p.add_argument(
+        "--story",
+        action="store_true",
+        help="Also download Main/Event Story CG stills & scripts (special option for priconne)",
+    )
+    p.add_argument(
+        "--bond-story",
+        action="store_true",
+        help="Also download Character Bond Story CG stills & scripts (special option for priconne)",
     )
     p.add_argument(
         "--animated-only",
@@ -182,8 +194,8 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         parser.error(str(exc))
 
-    if args.category == "card_animation":
-        categories = list(SPECIAL_CATEGORIES)
+    if args.category in SPECIAL_CATEGORIES:
+        categories = [args.category]
     elif args.category == "all":
         categories = list(CATEGORIES)
     else:
@@ -201,6 +213,8 @@ def main(argv: list[str] | None = None) -> int:
         card_animation=args.card_animation or (args.category == "card_animation"),
         animated_only=args.animated_only,
         save_raw_bundle=not args.no_raw_bundle,
+        story=args.story or (args.category == "story"),
+        bond_story=args.bond_story or (args.category == "bond_story"),
     )
 
     drive_client: DriveSyncClient | None = None
@@ -229,6 +243,18 @@ def main(argv: list[str] | None = None) -> int:
                     f"[{gcode}] Note: --card-animation is available only for "
                     f"{', '.join(ANIMATED_CARD_GAMES)} (skipping animated card step)."
                 )
+        for flag_enabled, sc_name, flag_name in (
+            (args.story, "story", "--story"),
+            (args.bond_story, "bond_story", "--bond-story"),
+        ):
+            if flag_enabled and sc_name not in cats_for_game:
+                if adapter.supports_story:
+                    cats_for_game.append(sc_name)
+                else:
+                    print(
+                        f"[{gcode}] Note: {flag_name} is available only for "
+                        f"{', '.join(STORY_GAMES)} (skipping {sc_name} step)."
+                    )
 
         for cat in cats_for_game:
             if cat == "card_animation" and not adapter.supports_card_animation:
@@ -237,6 +263,13 @@ def main(argv: list[str] | None = None) -> int:
                     category="card_animation",
                     supported=False,
                     note=f"Special option --card-animation is supported only for {', '.join(ANIMATED_CARD_GAMES)}",
+                )
+            elif cat in ("story", "bond_story") and not adapter.supports_story:
+                res = CategoryResult(
+                    game=gcode,
+                    category=cat,
+                    supported=False,
+                    note=f"Special option --category {cat} is supported only for {', '.join(STORY_GAMES)}",
                 )
             else:
                 try:

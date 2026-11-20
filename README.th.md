@@ -2,17 +2,17 @@
 
 **Language / ภาษา:** [🇹🇭 ภาษาไทย](README.th.md) | [🇺🇸 English](README.md)
 
-เครื่องมือ CLI ภาษา Python สำหรับดึง **Masterdata JSON** และดาวน์โหลด/แตกไฟล์ **Assets ความละเอียดสูงสุด** จากเกมไอดอล, ดนตรี, และอนิเมะ RPG 8 เกมยอดนิยม แยกเก็บเป็นสัดส่วนตามเกมและหมวดหมู่ พร้อมระบบอัปโหลดและซิงค์ขึ้น **Google Drive** อัตโนมัติ
+เครื่องมือ CLI ภาษา Python สำหรับดึง **Masterdata JSON** และดาวน์โหลด/แตกไฟล์ **Assets ความละเอียดสูงสุด** จากเกมไอดอล, ดนตรี, และอนิเมะ RPG 9 เกมยอดนิยม แยกเก็บเป็นสัดส่วนตามเกมและหมวดหมู่ พร้อมระบบอัปโหลดและซิงค์ขึ้น **Google Drive** อัตโนมัติ
 
 > [!NOTE]
-> โปรเจกต์นี้ออกแบบตามแนวทาง **Hybrid Architecture (Approach 2)**: เก็บเฉพาะซอร์สโค้ด Python บน **GitHub** (`sakkarinz97/anime-game-asset-downloader`) และแยกเก็บไฟล์ภาพ โมเดล Live2D/Spine และ Unity AssetBundle ขนาดใหญ่ไว้ใน **Google Drive** (`Work/AnimeGameAssets/`) ผ่าน `.gitignore`
+> โปรเจกต์นี้ออกแบบตามแนวทาง **Hybrid Architecture (Approach 2)**: เก็บเฉพาะซอร์สโค้ด Python บน **GitHub** (`sakkarinz97/anime-game-asset-downloader`) และแยกเก็บไฟล์ภาพ โมเดล Live2D/Spine สคริปต์เนื้อเรื่อง และ Unity AssetBundle ขนาดใหญ่ไว้ใน **Google Drive** (`Work/AnimeGameAssets/`) ผ่าน `.gitignore`
 
 ---
 
 ## สารบัญ
 
 1. [โปรเจกต์นี้คืออะไร? และภาพรวมสถาปัตยกรรม](#overview)
-2. [รายชื่อเกมทั้ง 8 เกม & สิ่งที่ดาวน์โหลดได้](#games)
+2. [รายชื่อเกมทั้ง 9 เกม & สิ่งที่ดาวน์โหลดได้](#games)
 3. [ความต้องการของระบบและการติดตั้ง](#install)
 4. [คู่มือคำสั่งและการใช้งาน CLI ทั้งหมด](#cli)
 5. [ตัวอย่างคำสั่งใช้งานจริง](#examples)
@@ -24,14 +24,16 @@
 <a id="overview"></a>
 ## 1. โปรเจกต์นี้คืออะไร? และภาพรวมสถาปัตยกรรม
 
-**Anime Game Masterdata & Asset Downloader** เป็นสคริปต์รวมศูนย์ (`main.py` / `anime-dl`) ที่รวม **Adapter ของ 8 เกม** ไว้ในคำสั่งเดียว รองรับตั้งแต่เกมที่โหลดผ่าน HTTP JSON/PNG โดยตรง ไปจนถึงเกมที่ต้องถอดรหัส AES และแตกไฟล์ UnityFS AssetBundle + Shader/Animation ด้วย `UnityPy`
+**Anime Game Masterdata & Asset Downloader** เป็นสคริปต์รวมศูนย์ (`main.py` / `anime-dl`) ที่รวม **Adapter ของ 9 เกม** ไว้ในคำสั่งเดียว รองรับตั้งแต่เกมที่โหลดผ่าน HTTP JSON/PNG/WebP โดยตรง ไปจนถึงเกมที่ต้องถอดรหัส AES และแตกไฟล์ UnityFS AssetBundle + Shader/Animation ด้วย `UnityPy`
 
 ### หมวดหมู่ Asset ที่รองรับ
 1. **`card`** — ภาพการ์ด / Memoria ความละเอียดสูงสุด (ทั้งก่อนและหลัง Awaken / Training, ภาพพื้นหลังเต็มใบ HQ, Cutout และ Cover เมื่อมี)
 2. **`live2d`** — ไฟล์โมเดลตัวละคร 2 มิติ (Live2D Cubism 2/3/4/5 พร้อม `.moc`/`.moc3`, `model.json`/`model3.json`, textures, physics, expressions และ motions; ส่วนเกมที่ใช้ **Spine** จะดาวน์โหลดเป็น `.skel` / `.atlas` / `.png` ลงในโฟลเดอร์ `spine/` โดยอัตโนมัติ)
 3. **`character`** — ภาพตัวละครยืน (Standing / Full Cutout / Chibi `puchi`/`livesd`), ไอคอนตัวละคร, ลายเซ็น และ Poster ความละเอียดสูง
 4. **`card_animation`** *(โหมดพิเศษเฉพาะ **`yumesute`** และ **`assaultlily`**)* — ดึงและแตกไฟล์การ์ดเวอร์ชัน Animation จาก UnityFS AssetBundle ออกมาเป็นเลเยอร์ภาพ, FX Sprite Sheets, Mask, Emoria Spine 3.6 และ `animation_meta.json` (เลือกได้ทั้งเก็บหรือไม่เก็บไฟล์ `.bundle` ดิบ)
-5. **`all`** — รันหมวดมาตรฐานทั้ง 3 หมวด (`card`, `live2d`, `character`) ต่อเนื่องในคำสั่งเดียว (และสามารถพ่วง `--card-animation` เพื่อแถม `card_animation` ให้เกมที่รองรับได้ทันที)
+5. **`story`** *(โหมดพิเศษสำหรับ **`priconne`**)* — ดาวน์โหลดภาพ CG เนื้อเรื่องหลัก/กิลด์/อีเวนต์/หอคอยลูน่า/ครบรอบ (`.webp`), ไฟล์สคริปต์ `.json` และสร้างไฟล์บทสนทนาอ่านง่าย `.txt` อัตโนมัติ
+6. **`bond_story`** *(โหมดพิเศษสำหรับ **`priconne`**)* — ดาวน์โหลดภาพ CG เนื้อเรื่องสายสัมพันธ์ตัวละคร (`.webp`), สคริปต์ `.json` และบทสนทนา `.txt` แยกเก็บตามรหัสและชื่อตัวละคร
+7. **`all`** — รันหมวดมาตรฐานทั้ง 3 หมวด (`card`, `live2d`, `character`) ต่อเนื่องในคำสั่งเดียว (และสามารถพ่วง `--card-animation`, `--story`, `--bond-story` ให้เกมที่รองรับได้ทันที)
 
 ### โครงสร้างไฟล์ของโปรเจกต์และผลลัพธ์
 
@@ -46,7 +48,7 @@ anime-game-asset-downloader/
 │   ├── unity_utils.py       # ตัวแตก UnityPy Texture2D, TextAsset, Spine 3.6 & Animated Card Bundle
 │   └── drive_sync.py        # ระบบซิงค์ไฟล์เข้า Google Drive ผ่าน `gdrive` CLI
 ├── games/
-│   ├── __init__.py          # Registry ของเกมทั้ง 8 เกม (`ADAPTERS`)
+│   ├── __init__.py          # Registry ของเกมทั้ง 9 เกม (`ADAPTERS`)
 │   ├── cgss.py              # THE iDOLM@STER Cinderella Girls: Starlight Stage
 │   ├── mltd.py              # THE iDOLM@STER Million Live! Theater Days
 │   ├── pjsk.py              # Project SEKAI COLORFUL STAGE! feat. Hatsune Miku
@@ -54,12 +56,15 @@ anime-game-asset-downloader/
 │   ├── bandori.py           # BanG Dream! Girls Band Party!
 │   ├── ournotes.py          # BanG Dream! Our Notes
 │   ├── yumesute.py          # World Dai Star: Yume no Stellarium
-│   └── assaultlily.py       # Assault Lily: Last Bullet
+│   ├── assaultlily.py       # Assault Lily: Last Bullet
+│   └── priconne.py          # Princess Connect! Re:Dive (JP)
 └── downloads/               # (ถูก .gitignore) โฟลเดอร์เก็บ masterdata & assets บนเครื่อง
     └── <game_code>/
         ├── masterdata/      # แคชไฟล์ JSON / Catalog จากต้นทาง
         ├── card/
         ├── card_animation/  # (yumesute, assaultlily)
+        ├── story/           # (priconne)
+        ├── bond_story/      # (priconne)
         ├── live2d/          # (หรือ `spine/` สำหรับ yumesute, assaultlily)
         └── character/
 ```
@@ -76,15 +81,16 @@ Work/
     ├── bandori/       (card, live2d, character)
     ├── ournotes/      (card, live2d, character)
     ├── yumesute/      (card, card_animation, spine, character)
-    └── assaultlily/   (card, card_animation, spine, character)
+    ├── assaultlily/   (card, card_animation, spine, character)
+    └── priconne/      (card, story, bond_story, character)
 ```
 
 ---
 
 <a id="games"></a>
-## 2. รายชื่อเกมทั้ง 8 เกม & สิ่งที่ดาวน์โหลดได้
+## 2. รายชื่อเกมทั้ง 9 เกม & สิ่งที่ดาวน์โหลดได้
 
-| รหัส (`--game`) | ชื่อเกม | `--region` ที่รองรับ | `card` | `card_animation` *(พิเศษ)* | `live2d` / `spine` | `character` |
+| รหัส (`--game`) | ชื่อเกม | `--region` ที่รองรับ | `card` | `card_animation` / `story` *(พิเศษ)* | `live2d` / `spine` | `character` |
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- |
 | **`cgss`** | THE iDOLM@STER Cinderella Girls: Starlight Stage | `jp` | PNG การ์ด (`card`) + ภาพเต็มแนวนอน (`spread`) | — | ❌ *(ในเกมใช้โมเดล 3D และ 2D Puchi ไม่มี Live2D)* | ไอคอนการ์ด (`icon_card`) + ตัวจิ๋ว `puchi` |
 | **`mltd`** | THE iDOLM@STER Million Live! Theater Days | `jp` | การ์ดแบบมีกรอบ/ไร้กรอบ (`framed`/`clean`) + พื้นหลัง `card_bg_hq` (ปกติ & Awake) | — | ❌ *(ในเกมใช้โมเดล 3D ไม่มี Live2D)* | พอร์ตเทรตไอคอนใหญ่ (`icon_l`) ปกติ & Awake |
@@ -94,6 +100,7 @@ Work/
 | **`ournotes`** | BanG Dream! Our Notes | `hk-tw-mo` *(หรือ `tw`)*, `en`, `jp` | Member Card (`member_full`, `member_background`) + Support Card (`snap_full`) | — | ✅ **Cubism 3/4** (โหลดตาม manifest และรวม chunked `.prefab.json` ให้อัตโนมัติ) | `character_sprite`, `character_thumbnail`, `character_face_icon` + `member_character` Cutout |
 | **`yumesute`** | World Dai Star: Yume no Stellarium (`Yumesute`) | `jp` | Full-Res `1920x1180` (`0.png`/`1.png`, `cover0`/`cover1`) + Transparent Cutout | 🎬 **Animated Actor Cards** (`4★ SSR _1` & ซีรีส์ `15xxxx`): ภาพ 1920x1180 + Multi-layer + FX Sprite Sheet + Mask + Shader/Holo JSON + `.bundle` | 🦴 **Spine 4.1** (`.skel`, `.atlas`, `.png` — บันทึกลง `spine/`) | Card/Poster Icons + *(ถ้ามี `UnityPy`+`brotli`)* Full Posters `1357x1920` & ลายเซ็นจาก Live CDN |
 | **`assaultlily`** | アサルトリリィ Last Bullet | `jp` | Full JPG `800x600` (`full/`) + 256x256 PNG + `memoria_ultimate` (ตั้งแต่ ★6/ปลุกพลังไม่จำกัด) | 🎬 **Animated Memoria Prefabs** (`card_prefab`): Atlases `2048x2048` + VFX Sprites + Emoria **Spine 3.6** (`.skel`/`.atlas`/`.png`) + `card_preview.jpg` + `animation_meta.json` + `.bundle` | 🦴 **Spine Samples** (`.skel`, `.atlas`, `.png` `CharacterJobSpine*` — บันทึกลง `spine/`) | Portraits (`chara`) + Costume Standing `@2x` (`900x1550`) + Full Illus (`1536x1174` JPG) + `job_icon` |
+| **`priconne`** | Princess Connect! Re:Dive | `jp` | ภาพ Full `1408x792` (`3★`/`6★`) + ภาพเริ่มต้น `1★` (`1024x682`) `.webp` | 📖 **`story` & `bond_story`**: ภาพ CG เนื้อเรื่องหลัก/กิลด์/อีเวนต์/หอคอย และเนื้อเรื่องสายสัมพันธ์ตัวละคร (`.webp`), สคริปต์ `.json` + ไฟล์อ่านง่าย `.txt` | ❌ *(ในเกมใช้ Spine — รองรับ `card`, `story`, `bond_story`, `character`)* | โปรไฟล์ปกติ/โลกจริง (`profile/`, `actual_profile/`), `icon_unit/` และ `plate/` (`.webp`) |
 
 > [!TIP]
 > * เกม **`yumesute`** และ **`assaultlily`** ใช้ **Spine** ไม่ใช่ Live2D Cubism ดังนั้นเมื่อเรียก `--category live2d` ระบบจะดาวน์โหลดไฟล์ Spine ลงในโฟลเดอร์ `spine/` ของเกมนั้นแทนเพื่อให้สอดคล้องกับเอนจินจริง
@@ -107,7 +114,7 @@ Work/
 * **Python เวอร์ชัน `>= 3.10`**
 
 ### แบบที่ 1: โหมดพื้นฐาน (Python Standard Library ล้วน)
-เหมาะสำหรับเกม **`cgss`**, **`mltd`**, **`pjsk`**, **`bandori`**, **`ournotes`**, ส่วนภาพการ์ด/ตัวละคร/Spine sample ของ **`assaultlily`**, และส่วนการ์ด/ไอคอน/Spine 4.1 บน GitHub ของ **`yumesute`** — **ไม่จำเป็นต้องติดตั้งแพ็กเกจเสริม** รันได้ทันที:
+เหมาะสำหรับเกม **`cgss`**, **`mltd`**, **`pjsk`**, **`bandori`**, **`ournotes`**, **`priconne`**, ส่วนภาพการ์ด/ตัวละคร/Spine sample ของ **`assaultlily`**, และส่วนการ์ด/ไอคอน/Spine 4.1 บน GitHub ของ **`yumesute`** — **ไม่จำเป็นต้องติดตั้งแพ็กเกจเสริม** รันได้ทันที:
 
 ```bash
 git clone https://github.com/sakkarinz97/anime-game-asset-downloader.git
@@ -146,10 +153,12 @@ pip install -e ".[all]"
 | คำสั่ง / Flag | ค่าเริ่มต้น | ตัวเลือก / รูปแบบ | คำอธิบาย |
 | :--- | :--- | :--- | :--- |
 | `-h`, `--help` | `False` | Flag | แสดงวิธีใช้งานและรายการพารามิเตอร์ทั้งหมดแล้วออก |
-| `--list-games` | `False` | Flag | แสดงรายชื่อเกมทั้ง 8 เกม โซนที่รองรับ การรองรับ `AnimCard` และเครดิตแหล่งข้อมูลแล้วออก |
-| `--game` | `all` | `cgss`, `mltd`, `pjsk`, `holodori`, `bandori`, `ournotes`, `yumesute`, `assaultlily`, `all` | เลือกเกมที่ต้องการ (ระบุหลายเกมคั่นด้วยช่องว่างหรือเครื่องหมาย `,` เช่น `--game pjsk,bandori` หรือ `--game pjsk bandori`) |
-| `--category` | `all` | `card`, `live2d`, `character`, `card_animation`, `all` | เลือกหมวด Asset (`all` = `card` + `live2d` + `character`) |
+| `--list-games` | `False` | Flag | แสดงรายชื่อเกมทั้ง 9 เกม โซนที่รองรับ การรองรับ `AnimCard`/`Story` และเครดิตแหล่งข้อมูลแล้วออก |
+| `--game` | `all` | `cgss`, `mltd`, `pjsk`, `holodori`, `bandori`, `ournotes`, `yumesute`, `assaultlily`, `priconne`, `all` | เลือกเกมที่ต้องการ (ระบุหลายเกมคั่นด้วยช่องว่างหรือเครื่องหมาย `,` เช่น `--game pjsk,bandori` หรือ `--game pjsk bandori`) |
+| `--category` | `all` | `card`, `live2d`, `character`, `card_animation`, `story`, `bond_story`, `all` | เลือกหมวด Asset (`all` = `card` + `live2d` + `character`) |
 | `--card-animation` | `False` | Flag | *(พิเศษเฉพาะ `yumesute`, `assaultlily`)* สั่งโหลดหมวด `card_animation` เพิ่มเติมควบคู่กับ `--category` ที่เลือก |
+| `--story` | `False` | Flag | *(พิเศษเฉพาะ `priconne`)* สั่งโหลดหมวด `story` (CG + สคริปต์เนื้อเรื่อง) ควบคู่กับ `--category` ที่เลือก |
+| `--bond-story` | `False` | Flag | *(พิเศษเฉพาะ `priconne`)* สั่งโหลดหมวด `bond_story` (CG + สคริปต์สายสัมพันธ์) ควบคู่กับ `--category` ที่เลือก |
 | `--animated-only` | `False` | Flag | *(พิเศษเฉพาะ `yumesute`, `assaultlily`)* กรองเฉพาะการ์ดที่มีเวอร์ชัน Animation ในหมวด `card` / `card_animation` |
 | `--no-raw-bundle` | `False` | Flag | ข้ามการเก็บไฟล์ UnityFS `.bundle` ดิบตอนแตก `card_animation` (เก็บเฉพาะภาพ PNG, Spine, `card_preview.jpg` และ `animation_meta.json` เพื่อประหยัดพื้นที่) |
 | `--region` | `jp` | ดูตารางด้านล่าง | เลือกโซนเซิร์ฟเวอร์ (มีผลเฉพาะเกมที่รองรับหลายเซิร์ฟเวอร์) |
@@ -178,6 +187,7 @@ pip install -e ".[all]"
 | **`ournotes`** | `hk-tw-mo` *(alias: `tw`)*, `en`, `jp` | `r`/`2`, `sr`/`3`, `ssr`/`4`, `ex` *(10)*, `bd` *(20)* |
 | **`yumesute`** | `jp` | การ์ด: `1`/`n`, `2`/`r`, `3`/`sr`, `4`/`ssr` *(ซีรีส์ `15xxxx` อยู่ใน `rarity=4`)*; Poster: `r`/`2`, `sr`/`3`, `ssr`/`4`, `ur` |
 | **`assaultlily`** | `jp` | `r`/`3`, `sr`/`4`, `ssr`/`5`, `ur`/`6`, `lg`/`7`, `8`, `9`, `10` |
+| **`priconne`** | `jp` | `1`/`1star`/`r`, `3`/`3star`/`sr`/`ssr`, `6`/`6star`/`ur` |
 
 ### รายละเอียดโหมดพิเศษ `--card-animation` (`yumesute` & `assaultlily`)
 * **`yumesute` (Animated Actor Cards)**
@@ -217,6 +227,9 @@ python3 main.py --game cgss --category card --rarity ssr --character uzuki --lim
 # โหลดเฉพาะภาพการ์ดของ BanG Dream! Our Notes เซิร์ฟเวอร์ไต้หวัน/ฮ่องกง/มาเก๊า
 python3 main.py --game ournotes --region hk-tw-mo --category card --limit 5
 
+# โหลดภาพการ์ด, เนื้อเรื่อง และเนื้อเรื่องสายสัมพันธ์ของ Princess Connect! Re:Dive (JP)
+python3 main.py --game priconne --category card --story --bond-story --limit 5
+
 # โหลด Live2D ของ hololive Dreams (เช่น Tokino Sora) โดยใช้ .venv
 .venv/bin/python main.py --game holodori --category live2d --character sora --limit 2
 ```
@@ -240,6 +253,9 @@ python3 main.py --game ournotes --region hk-tw-mo --category card --limit 5
 ```bash
 # โหลดทุกเกมทุกหมวด (จำกัดอย่างละ 2 รายการ) แล้วซิงค์ขึ้น Google Drive โฟลเดอร์ Work/AnimeGameAssets/
 .venv/bin/python main.py --game all --category all --limit 2 --upload-drive
+
+# ซิงค์การ์ด, เนื้อเรื่อง และสายสัมพันธ์ของ Princess Connect! Re:Dive ขึ้น Drive
+python3 main.py --game priconne --category card --story --bond-story --upload-drive --cleanup-local
 
 # ซิงค์การ์ด Animation ของ Yumesute และ Assault Lily ขึ้น Drive
 .venv/bin/python main.py --game yumesute assaultlily --category card_animation --limit 2 --upload-drive
@@ -268,6 +284,7 @@ python3 main.py --game ournotes --region hk-tw-mo --category card --limit 5
 | **`ournotes`** | • [`StarMoe-org/moenotes-masterdata`](https://github.com/StarMoe-org/moenotes-masterdata) *(Masterdata 3 โซน: `hk-tw-mo`, `en`, `jp`)*<br>อ้างอิงโปรเจกต์แม่: [`StarMoe-org/moenotes`](https://github.com/StarMoe-org/moenotes) | CDN Assets: `assets.bdon.moe/{lang_prefix}/`<br>Live2D Manifest: `assets.bdon.moe/chart-site/models.json` | ดึง `MasterMemberCard.json`, `MasterSupportCard.json`, `MasterCharacter.json` จาก GitHub `StarMoe-org/moenotes-masterdata` และโหลดภาพ/Live2D (พร้อมรวม chunked `.prefab.json`) จาก `assets.bdon.moe` |
 | **`yumesute`** | • [`SonolusHaniwa/sirius-decrypted-data`](https://github.com/SonolusHaniwa/sirius-decrypted-data)<br>• [`wds-sirius/Adv-Resource`](https://github.com/wds-sirius/Adv-Resource)<br>• [`wds-sirius/asset-of-dreams`](https://github.com/wds-sirius/asset-of-dreams) | Live Official Unity Addressables CDN: `assets-e.wds-stellarium.com/production/2d-assets/Android/{ver}/` | • `sirius-decrypted-data`: Masterdata (`card.json`, `master/*.json`) + ภาพการ์ด 1920x1180 (`0.png`, `1.png`, `cover*.png`)<br>• `Adv-Resource`: Spine 4.1 (`manifest/Spine.json`, `spine/*.{skel,atlas,png}`), cutout, card/poster icons, `_temp/2dcatalog.json` fallback<br>• `asset-of-dreams`: `config.yml` เพื่ออ่าน `asset_version` ล่าสุดสำหรับโหลด `catalog_{ver}.json.br`, Animated Actor Cards, Posters และ Signatures จาก Live CDN |
 | **`assaultlily`** | • [`LaTlcia/A.RA.YA`](https://github.com/LaTlcia/A.RA.YA) *(MasterdataBase & Asset Catalog)*<br>• [`czk200518-hash/AssaultLily-deskpet`](https://github.com/czk200518-hash/AssaultLily-deskpet) *(Spine Samples)*<br>อ้างอิงแนวทางเครื่องมือ: [`LaTlcia/ArayaToolbox`](https://github.com/LaTlcia/ArayaToolbox) | CDN Card/Bundles: `allb.tqlwsl.moe/` (`Image/Card/`, `asset_bundle/card_prefab/`)<br>Asset Mirror: `allb.game-db.tw/images/` | • `LaTlcia/A.RA.YA`: ดึง Masterdata การ์ด/ตัวละคร/ชุด และรายการ `asset_bundle/card_prefab/*` + `Image/Card/*`<br>• `czk200518-hash/AssaultLily-deskpet`: ตัวอย่างโมเดล `CharacterJobSpine*`<br>• `allb.tqlwsl.moe` & `allb.game-db.tw`: ภาพ Memoria Full 800x600 JPG, 256x256 PNG, Costume Standing `@2x` และ Animated Memoria Prefab `.bundle` (รวม Emoria Spine 3.6) |
+| **`priconne`** | Repo เวอร์ชันและ DB diff: [`esterTion/redive_master_db_diff`](https://github.com/esterTion/redive_master_db_diff) | CDN ที่แตกไฟล์แล้ว: `redive.estertion.win/` (`card/{full,profile,actual_profile,story}/`, `story/data/`, `icon/{unit,plate}/`) | อ่านรายชื่อไฟล์และชื่อตัวละคร/ตอนจากหน้า index ของ esterTion เพื่อดึงการ์ด 1★/3★/6★, ภาพ CG Story & Bond Story, และสคริปต์ `.json` พร้อมสร้างไฟล์อ่าน `.txt` |
 
 ---
 
@@ -276,7 +293,7 @@ python3 main.py --game ournotes --region hk-tw-mo --category card --limit 5
 
 ทรัพย์สินทางปัญญา ภาพประกอบ ตัวละคร โมเดล 2D/3D บทสนทนา และข้อมูลในเกมทั้งหมดเป็น **ลิขสิทธิ์และเครื่องหมายการค้าของเจ้าของสิทธิ์ดั้งเดิมในแต่ละเกม** โปรเจกต์นี้ไม่ได้เป็นเจ้าของและไม่ได้จัดเก็บไฟล์ที่มีลิขสิทธิ์เหล่านั้นไว้ใน Repository
 
-### ตารางข้อมูลลิขสิทธิ์ทั้ง 8 เกม
+### ตารางข้อมูลลิขสิทธิ์ทั้ง 9 เกม
 
 | รหัสเกม | ชื่อเกมทางการ | เจ้าของลิขสิทธิ์ / ผู้พัฒนา & ผู้ให้บริการ | ข้อความลิขสิทธิ์ทางการ (Copyright Notice) |
 | :--- | :--- | :--- | :--- |
@@ -288,9 +305,10 @@ python3 main.py --game ournotes --region hk-tw-mo --category card --limit 5
 | **`ournotes`** | バンドリ！ アワーノーツ *(BanG Dream! Our Notes)* | **BanG Dream! Project** / **FROMTOKYO Inc.** / **Bushiroad Inc.** *(ให้บริการ Global โดย BILIBILI HK LIMITED)* | `© BanG Dream! Project © FROMTOKYO © bushiroad All Rights Reserved.` |
 | **`yumesute`** | ワールドダイスター 夢のステラリウム *(World Dai Star: Yume no Stellarium)* | **Sirius / Project WDS** / **KMS, inc.** | `© Sirius / Project WDS Developed and Published by KMS, inc.` |
 | **`assaultlily`** | アサルトリリィ Last Bullet *(Assault Lily: Last Bullet)* | **AZONE INTERNATIONAL・acus / Assault Lily Project** / **WFS / Pokelabo, Inc.** *(โอนสิทธิ์พัฒนา-ให้บริการในญี่ปุ่นแก่ KING PAWN Inc. ตั้งแต่ ธ.ค. 2025)* / **SHAFT Inc.** | `© AZONE INTERNATIONAL・acus / アサルトリリィプロジェクト © WFS © Pokelabo, Inc. © SHAFT` |
+| **`priconne`** | プリンセスコネクト！Re:Dive *(Princess Connect! Re:Dive)* | **Cygames, Inc.** | `© Cygames, Inc.` |
 
 ### ข้อกำหนดและข้อสงวนสิทธิ์ (Disclaimer)
-1. **ไม่เกี่ยวข้องกับผู้พัฒนาทางการ (Unofficial Tool)**: เครื่องมือนี้สร้างขึ้นโดยชุมชนผู้ใช้ เพื่อช่วยให้สามารถจัดเก็บและสืบค้นข้อมูล Asset จากแหล่งสาธารณะได้สะดวกขึ้นเท่านั้น ไม่มีความเกี่ยวข้องหรือได้รับการรับรองจากบริษัทเจ้าของเกมทั้ง 8 เกม
+1. **ไม่เกี่ยวข้องกับผู้พัฒนาทางการ (Unofficial Tool)**: เครื่องมือนี้สร้างขึ้นโดยชุมชนผู้ใช้ เพื่อช่วยให้สามารถจัดเก็บและสืบค้นข้อมูล Asset จากแหล่งสาธารณะได้สะดวกขึ้นเท่านั้น ไม่มีความเกี่ยวข้องหรือได้รับการรับรองจากบริษัทเจ้าของเกมทั้ง 9 เกม
 2. **ใช้งานส่วนบุคคลและการศึกษาเท่านั้น (Personal, Research & Archival Use Only)**: ห้ามนำไฟล์ภาพ โมเดล Live2D/Spine หรือข้อมูลที่ดาวน์โหลดไปใช้ในเชิงพาณิชย์ ขายต่อ ดัดแปลงแอบอ้างเป็นผลงานตนเอง หรือเผยแพร่ซ้ำในลักษณะที่ละเมิดข้อตกลงการให้บริการ (Terms of Service) และกฎหมายลิขสิทธิ์
 3. **ใบอนุญาตซอฟต์แวร์โอเพนซอร์สของไลบรารีเสริม**:
    * โค้ดใน Repository นี้ (`main.py`, `core/*`, `games/*`) เป็นสคริปต์ Python แยกต่างหากสำหรับเรียกใช้ข้อมูลผ่าน HTTP/JSON/UnityPy

@@ -8,8 +8,9 @@ from pathlib import Path
 from typing import Optional
 
 CATEGORIES = ("card", "live2d", "character")
-SPECIAL_CATEGORIES = ("card_animation",)
+SPECIAL_CATEGORIES = ("card_animation", "story", "bond_story")
 ANIMATED_CARD_GAMES = ("yumesute", "assaultlily")
+STORY_GAMES = ("priconne",)
 
 
 @dataclass
@@ -35,6 +36,8 @@ class DownloadOptions:
     card_animation: bool = False
     animated_only: bool = False
     save_raw_bundle: bool = True
+    story: bool = False
+    bond_story: bool = False
 
 
 @dataclass
@@ -68,6 +71,7 @@ class GameAdapter(ABC):
     credits: str = ""
     supported_regions: tuple[str, ...] = ("jp",)
     supports_card_animation: bool = False
+    supports_story: bool = False
     category_notes: dict[str, str] = {}
 
     def game_dir(self, options: DownloadOptions) -> Path:
@@ -80,5 +84,5 @@ class GameAdapter(ABC):
 
     @abstractmethod
     def run_category(self, category: str, options: DownloadOptions) -> CategoryResult:
-        """Execute asset downloading for a single category (`card`, `live2d`, `character`)."""
+        """Execute asset downloading for a single category (`card`, `live2d`, `character`, etc.)."""
         raise NotImplementedError
